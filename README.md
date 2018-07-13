@@ -15,3 +15,9 @@ TimeBasedWill provides ether transfer functionalities to owner's beneficiaries b
         New Owner will now be able to control all funds in the contract.
     - RenounceOwnership - This will renounce the contracts ownership and transfer the funds
         present in the contract back to the owner.
+ 
+ To Do's:
+ - Export this to truffle 
+ - Add test cases
+ - Use Safe Math Library
+ - Use https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/payment/SplitPayment.sol to split the share
