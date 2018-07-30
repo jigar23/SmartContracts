@@ -27,7 +27,7 @@ contract('TimeBasedWill', function(accounts) {
     assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 5000);
   });
 
-  it("Adding/Removing Benefeciaries", async () => {
+  it("Adding/Removing Beneficiaries", async () => {
     let timeWillObj = await TimeBasedWill.new(10, {from: owner, value: 5000});
     assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 5000);
     await timeWillObj.addBeneficiary(accounts[1]);
@@ -42,7 +42,7 @@ contract('TimeBasedWill', function(accounts) {
     assert.equal(web3.eth.getBalance(accounts[3]).toNumber(), original_balance_3 + 2500);
   });
 
-  it("Approve benefeciary addresses", async () => {
+  it("Approve beneficiary addresses", async () => {
     let timeWillObj = await TimeBasedWill.new(10, {from: owner, value: 6000});
     assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 6000);
     await timeWillObj.approveAddresses([accounts[4], accounts[5], accounts[6]]);
