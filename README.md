@@ -22,5 +22,4 @@ TimeBasedWill provides ether transfer functionalities to owner's beneficiaries b
  - Added test cases in Javascript to test basic functionalities
  
  To Do's:
- - Use Safe Math Library
  - Use https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/payment/SplitPayment.sol to split the share
