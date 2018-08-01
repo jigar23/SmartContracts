@@ -1,6 +1,7 @@
 pragma solidity ^0.4.23;
 import "./Ownable.sol";
 import "./AddressArrayExtended.sol";
+import "./SafeMath.sol";
 
 /**
  * @title TimeBasedWill
@@ -21,6 +22,7 @@ import "./AddressArrayExtended.sol";
 contract TimeBasedWill is Ownable {
 
     using AddressArrayExtended for address[];
+    using SafeMath for uint;
     address[] private m_beneficiaries;
     uint private m_expiryTime;
     event benefeciary_address(address benefeciary, uint balance);
@@ -50,7 +52,7 @@ contract TimeBasedWill is Ownable {
     {
         //require(address(this).balance > 0, "Please add some initial funds to the Will");
         require(expiryDuration >= 1, "Expiry time should be atleast 1 sec");
-        m_expiryTime = now + expiryDuration;
+        m_expiryTime = now.add(expiryDuration);
     }
 
     /**
@@ -59,7 +61,7 @@ contract TimeBasedWill is Ownable {
     */
     function changeExpiry(uint expiryDuration) onlyOwner beforeExpiry public
     {
-        m_expiryTime = now + expiryDuration;
+        m_expiryTime = now.add(expiryDuration);
     }
 
     /**
@@ -100,7 +102,7 @@ contract TimeBasedWill is Ownable {
         require(num_beneficiaries > 0, "Add some beneficiaries to distribute");
         require(address(this).balance >= num_beneficiaries * 1 wei, "Balance should be atleast num_beneficiaries * 1 wei");
         emit benefeciary_address(m_beneficiaries[1], m_beneficiaries[1].balance);
-        uint shareOfAddress = address(this).balance/num_beneficiaries;
+        uint shareOfAddress = address(this).balance.div(num_beneficiaries);
         
 
         for (uint i = 0; i < num_beneficiaries; i++) {
