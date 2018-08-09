@@ -96,3 +96,4 @@ library SafeMath8 {
         assert(c >= a);
         return c;
     }
+}

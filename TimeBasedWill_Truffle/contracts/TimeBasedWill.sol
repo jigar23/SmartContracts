@@ -24,7 +24,7 @@ contract TimeBasedWill is Ownable {
     using SafeMath for uint;
     using SafeMath8 for uint8;
 
-    event transferred_value(address benefeciary, uint balance);
+    event transferred_value(address beneficiary, uint balance);
 
     struct Share {
         uint8 m_percent_share;
@@ -34,6 +34,7 @@ contract TimeBasedWill is Ownable {
     address[] public m_beneficiaries;
     mapping(address => Share) public m_beneficiary_shares;
     uint public m_expiryTime;
+    uint private m_funds_allocated;
 
     /**
     * @dev Throw an exception if called before the expiry time
@@ -61,7 +62,7 @@ contract TimeBasedWill is Ownable {
         //require(address(this).balance > 0, "Please add some initial funds to the Will");
         require(expiryDuration >= 1, "Expiry time should be atleast 1 sec");
         m_expiryTime = expiryDuration.add(now);
-        m_num_beneficiaries = 0;
+        m_funds_allocated = address(this).balance;
     }
 
     /**
@@ -82,14 +83,13 @@ contract TimeBasedWill is Ownable {
     */
     function addBeneficiariesWithPercentShares(address[] beneficiaries, uint8[] shares) public onlyOwner beforeExpiry
     {   
-        require(beneficiaries.length < 256, "Can only add upto 255 beneficiaries");
-        require(beneficiaries.length == shares.length, "Benefeciary and shares array length to be same");
+        require(beneficiaries.length == shares.length, "beneficiary and shares array length to be same");
         uint8 total_shares = 0;
         for (uint i = 0; i < beneficiaries.length; i++) {
             require(beneficiaries[i] != m_owner, "Cannot add owner as beneficiary");
             require(beneficiaries[i] != address(0), "Enter a valid address");
             require(shares[i] > 0 && shares[i] <= 100, "Share has to > 0 & <= 100");
-            total_shares.add(shares[i]);
+            total_shares = total_shares.add(shares[i]);
         }
         require(total_shares == 100, "Total shares should add to 100%");
         _addBeneficiariesWithPercentShares(beneficiaries, shares);
@@ -99,8 +99,7 @@ contract TimeBasedWill is Ownable {
     {   
         // Will override the previous added beneficiaries
         // Instead of clearing the previous array, if we override then its takes less gas
-        m_num_beneficiaries = 0;
-        uint8 min_length = 0;
+        uint min_length = 0;
         if (m_beneficiaries.length <= beneficiaries.length) {
             min_length = m_beneficiaries.length;
         }
@@ -126,8 +125,9 @@ contract TimeBasedWill is Ownable {
         // If lesser elements added than previously present, remove the extra elements from the array
         // and delete them from the map
         else {
-            for (uint8 i = m_beneficiaries.length-1; i >= index; i--) {
-                address beneficiary = m_beneficiaries.pop();
+            for (uint i = m_beneficiaries.length-1; i >= index; i--) {
+                address beneficiary = m_beneficiaries[i];
+                delete m_beneficiaries[i];
                 delete m_beneficiary_shares[beneficiary];
             }
             m_beneficiaries.length = min_length;
@@ -141,12 +141,13 @@ contract TimeBasedWill is Ownable {
     function claimOwnership() public payable afterExpiry
     {   
         address payee = msg.sender;
-        Share payee_share = m_beneficiary_shares[payee];
+        Share storage payee_share = m_beneficiary_shares[payee];
 
         require(payee_share.m_percent_share > 0, "Address not present in the list of beneficiaries or no shares allocated");
-        require(payee_share.m_claimed_ownership == false, "Address has already claimed owenrship");
-
-        uint value = address(this).balance.mul(payee_share).div(100);
+        require(payee_share.m_claimed_ownership == false, "Address has already claimed ownership");
+        
+        payee_share.m_claimed_ownership = true;
+        uint value = m_funds_allocated.mul(payee_share.m_percent_share).div(100);
         require(value != 0);
         payee.transfer(value);
         emit transferred_value(payee, value);
@@ -156,6 +157,7 @@ contract TimeBasedWill is Ownable {
     * @dev The owner can add more funds to the contract
     */
     function addFunds() public payable onlyOwner beforeExpiry {
+        m_funds_allocated = address(this).balance;
     }
 
     /**
@@ -165,5 +167,6 @@ contract TimeBasedWill is Ownable {
         require(amount > 0, "Add some value to remove funds");
         require(address(this).balance >= amount, "Balance insufficient to remove funds");
         m_owner.transfer(amount);
+        m_funds_allocated = address(this).balance;
     }
 }
