@@ -1,4 +1,5 @@
 pragma solidity ^0.4.23;
+// Use "import browser/.." for remix
 import "./Ownable.sol";
 import "./AddressArrayExtended.sol";
 import "./SafeMath.sol";
@@ -145,7 +146,7 @@ contract TimeBasedWill is Ownable {
 
         require(payee_share.m_percent_share > 0, "Address not present in the list of beneficiaries or no shares allocated");
         require(payee_share.m_claimed_ownership == false, "Address has already claimed ownership");
-        
+
         payee_share.m_claimed_ownership = true;
         uint value = m_funds_allocated.mul(payee_share.m_percent_share).div(100);
         require(value != 0);
