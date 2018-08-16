@@ -1,7 +1,5 @@
 const TimeBasedWill = artifacts.require("./TimeBasedWill.sol");
 const { increaseTime } = require("./utils/increaseTime.js");
-// truffleAssert for getting the events printed
-// const truffleAssert = require('truffle-assertions');
 
 // deployed behaves like a singleton. It will look if there is already an instance of the contract deployed to the blockchain via deployer.deploy. The information about which contract has which address on which network is stored in the build folder. 
 // new will always create a new instance.
@@ -10,6 +8,9 @@ const { increaseTime } = require("./utils/increaseTime.js");
 // Using async/await on the same account has some threading issues where some tests randomly fail
 // Check the link -> https://github.com/trufflesuite/truffle/issues/557
 // Using different accounts for each of the test cases solves this issue for now
+
+// Works only the first time you start testrpc
+// Weirdly it keeps adding the multiple balances in subsequent runs
 
 contract('TimeBasedWill', function(accounts) {
 
@@ -27,47 +28,94 @@ contract('TimeBasedWill', function(accounts) {
     assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 5000);
   });
 
-  it("Adding/Removing Beneficiaries", async () => {
+  it("Adding Beneficiaries", async () => {
+    let timeWillObj = await TimeBasedWill.new(10, {from: owner, value: 1000});
+    assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 1000);
+    await timeWillObj.addBeneficiariesWithPercentShares([accounts[1], accounts[2], accounts[3]],[30,30,40]);
+    await increaseTime(11);
+    var original_balance_2 = await web3.eth.getBalance(accounts[2]).toNumber();
+    console.log(`Initial Balance: ${original_balance_2}`);
+    // To estimate gas usage
+    //const gasCost = await timeWillObj.claimOwnership.estimateGas({from: accounts[1]});
+  
+    const hash = await timeWillObj.claimOwnership({from: accounts[2]});
+    const gasUsed = hash.receipt.gasUsed;
+    console.log(`GasUsed: ${hash.receipt.gasUsed}`);
+
+    // Obtain gasPrice from the transaction
+    const tx = await web3.eth.getTransaction(hash.tx);
+    console.log(`Contract Address: ${timeWillObj.address}`);
+    console.log(`Contract Balance: ${web3.eth.getBalance(timeWillObj.address).toNumber()}`);
+    console.log(`Account Address: ${accounts[1]}`);
+    console.log(`To: ${tx.to}`);
+    console.log(`From: ${tx.from}`);
+    console.log(`Value: ${tx.value}`);
+    
+    const gasPrice = tx.gasPrice;
+    console.log(`GasPrice: ${tx.gasPrice}`);
+
+    // Final balance
+    const final = await web3.eth.getBalance(accounts[2]);
+    console.log(`Final: ${final.toString()}`);
+
+    assert.equal(final.add(gasPrice.mul(gasUsed)).sub(300).toString(), original_balance_2.toString(), "Must be equal");
+  });
+
+  it("Adding/Removing Beneficiaries", async() => {
     let timeWillObj = await TimeBasedWill.new(10, {from: owner, value: 5000});
     assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 5000);
-    await timeWillObj.addBeneficiary(accounts[1]);
-    await timeWillObj.addBeneficiary(accounts[2]);
-    await timeWillObj.addBeneficiary(accounts[3]);
-    await timeWillObj.removeBeneficiary(accounts[2]);
-    await increaseTime(11);
-    var original_balance_1 = web3.eth.getBalance(accounts[1]).toNumber();
-    var original_balance_3 = web3.eth.getBalance(accounts[3]).toNumber();
-    await timeWillObj.claimOwnership();
-    assert.equal(web3.eth.getBalance(accounts[1]).toNumber(), original_balance_1 + 2500);
-    assert.equal(web3.eth.getBalance(accounts[3]).toNumber(), original_balance_3 + 2500);
-  });
+    await timeWillObj.addBeneficiariesWithPercentShares([accounts[1], accounts[2], accounts[3]],[30,30,40]);
 
-  it("Approve beneficiary addresses", async () => {
-    let timeWillObj = await TimeBasedWill.new(10, {from: owner, value: 6000});
-    assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 6000);
-    await timeWillObj.approveAddresses([accounts[4], accounts[5], accounts[6]]);
+    // Change the accounts
+    await timeWillObj.addBeneficiariesWithPercentShares([accounts[4], accounts[5], accounts[6]],[30,30,40]);
     await increaseTime(11);
-    var original_balance_4 = web3.eth.getBalance(accounts[4]).toNumber();
-    var original_balance_6 = web3.eth.getBalance(accounts[6]).toNumber();
-    await timeWillObj.claimOwnership();
-    assert.equal(web3.eth.getBalance(accounts[4]).toNumber(), original_balance_4 + 2000);
-    assert.equal(web3.eth.getBalance(accounts[6]).toNumber(), original_balance_6 + 2000);
-  });
+    var original_balance_5 = await web3.eth.getBalance(accounts[5]).toNumber();
 
+    const hash = await timeWillObj.claimOwnership({from: accounts[5]});
+    const gasUsed = hash.receipt.gasUsed;
+    const tx = await web3.eth.getTransaction(hash.tx);
+    const gasPrice = tx.gasPrice;
+    const final_5 = await web3.eth.getBalance(accounts[5]);
+    console.log(`Final: ${final_5.toString()}`);
+
+    assert.equal(final_5.add(gasPrice.mul(gasUsed)).sub(1500).toString(), original_balance_5.toString(), "Must be equal");
+  });
 
   it("Decrease expiry time", async () => {
     // Original expiry - 50 sec
     let timeWillObj = await TimeBasedWill.new(50, {from: owner, value: 4000});
     assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 4000);
-    await timeWillObj.approveAddresses([accounts[7], accounts[8]]);
+    await timeWillObj.addBeneficiariesWithPercentShares([accounts[1], accounts[2], accounts[3]],[20,30,50]);
     // New expiry 10sec
     await timeWillObj.changeExpiry(10);
     await increaseTime(10);
-    var original_balance_7 = web3.eth.getBalance(accounts[7]).toNumber();
-    var original_balance_8 = web3.eth.getBalance(accounts[8]).toNumber();
-    await timeWillObj.claimOwnership();
-    assert.equal(web3.eth.getBalance(accounts[7]).toNumber(), original_balance_7 + 2000);
-    assert.equal(web3.eth.getBalance(accounts[8]).toNumber(), original_balance_8 + 2000);
+    var original_balance_3 = await web3.eth.getBalance(accounts[3]).toNumber();
+
+    const hash = await timeWillObj.claimOwnership({from: accounts[3]});
+    const gasUsed = hash.receipt.gasUsed;
+    const tx = await web3.eth.getTransaction(hash.tx);
+    const gasPrice = tx.gasPrice;
+    const final_3 = await web3.eth.getBalance(accounts[3]);
+    console.log(`Final: ${final_3.toString()}`);
+
+    assert.equal(final_3.add(gasPrice.mul(gasUsed)).sub(2000).toString(), original_balance_3.toString(), "Must be equal");
+  });
+
+  //Changing the ownership
+  it("Change ownership", async () => {
+    let timeWillObj = await TimeBasedWill.new(10, {from: owner, value: 4000});
+    await timeWillObj.transferOwnership(accounts[7]);
+    assert.equal(web3.eth.getBalance(timeWillObj.address).toNumber(), 4000);
+    await timeWillObj.addBeneficiariesWithPercentShares([accounts[4], accounts[5], accounts[6]],[20,30,50], {from: accounts[7]});
+
+    var original_balance_7 = await web3.eth.getBalance(accounts[7]).toNumber();
+    const hash = await timeWillObj.renounceOwnership({from: accounts[7]});
+    const gasUsed = hash.receipt.gasUsed;
+    const tx = await web3.eth.getTransaction(hash.tx);
+    const gasPrice = tx.gasPrice;
+    const final_7 = await web3.eth.getBalance(accounts[7]);
+
+    assert.equal(final_7.add(gasPrice.mul(gasUsed)).sub(4000).toString(), original_balance_7.toString(), "Must be equal");
   });
 
 });
